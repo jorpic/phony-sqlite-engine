@@ -7,8 +7,7 @@ module Engine
     , evalToYield
     , runQuery
     , Db(..)
-    , EngineState(..)
-    , defaultEngineState
+    , Val(..)
     ) where
 
 import Control.Lens
@@ -26,18 +25,19 @@ newtype CursorId = CursorId Int deriving (Eq, Ord, Show)
 newtype TableId = TableId Int deriving (Eq, Ord, Show)
 
 type Addr = Int
-type Val = String
-type Row = [Val]
+data Val = StrVal String | IntVal Integer | RealVal Double
+  deriving (Eq, Show)
+type Row = [Maybe Val]
 newtype Db = Db (Map TableId [Row])
   deriving Show
 
 data Cursor = TableCursor TableId [Row]
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 type EngineErr = String
 
 data EngineState = EngineState
-  { _ip :: Int -- program counter
+  { _ip :: Int -- instruction (cmd) pointer
   , _jumpTo :: Maybe Int
   , _db :: Db
   , _registers :: Map Int Val
@@ -58,19 +58,18 @@ defaultEngineState = EngineState
   , _yield = []
   }
 
--- check yield
--- check ip
--- fetch new command
-
-
 data Cmd
   = Init { goto :: Addr }
     -- ^ If P2 is not zero, jump to instruction P2.
-  | String8 { reg :: Int, val :: String }
-  | OpenRead { cursor :: CursorId, table :: TableId }
-  | Rewind { cursor :: CursorId, goto :: Addr }
   | Goto { goto :: Addr }
   | Halt
+  | Real  { reg :: Int, rVal :: Double }
+  | Integer  { reg :: Int, iVal :: Integer }
+  | String8 { reg :: Int, sVal :: String }
+  | ResultRow { reg :: Int, len :: Int }
+    -- ^ The registers P1 through P1+P2-1 contain a single row of results.
+  | OpenRead { cursor :: CursorId, table :: TableId }
+  | Rewind { cursor :: CursorId, goto :: Addr }
   deriving (Eq, Show)
 
 type Engine a = StateT EngineState (Except EngineErr) a
@@ -79,7 +78,14 @@ evalCmd :: Cmd -> Engine ()
 evalCmd = \case
   Init{..} -> when (goto > 0) $ jumpTo .= Just goto
   Goto{..} -> jumpTo .= Just goto
-  String8{..} -> registers %= Map.insert reg val
+  Halt -> lift $ throwE "Halt!"
+  Real{..}    -> registers %= Map.insert reg (RealVal rVal)
+  Integer{..} -> registers %= Map.insert reg (IntVal iVal)
+  String8{..} -> registers %= Map.insert reg (StrVal sVal)
+  ResultRow{..} -> do
+    regs <- use registers
+    let row = map (`Map.lookup` regs) [reg .. reg+len-1]
+    yield .= [row]
   _ -> lift $ throwE "Not implemented yet"
 
 
@@ -97,21 +103,22 @@ evalToYield query = loop
         Just cmd -> do
           evalCmd cmd
           EngineState{_jumpTo, _yield} <- get
-
           -- update instruction pointer
-          let ip' = fromMaybe (_ip + 1) _jumpTo
+          ip .= fromMaybe (_ip + 1) _jumpTo
           jumpTo .= Nothing
-          ip .= ip'
-
+          -- loop if no yield
           case _yield of
             [] -> loop
             _ -> return _yield
 
+runWithDb :: Db -> Engine a -> Either EngineErr a
+runWithDb db' f = runExcept $ evalStateT f $ defaultEngineState { _db = db' }
+
+
+-- NB. this should not be used to get huge results
 runQuery :: Db -> Query -> Either EngineErr [Row]
-runQuery db' q
-  = runExcept $ evalStateT loop $ defaultEngineState { _db = db' }
+runQuery db' q = runWithDb db' loop
   where
-    -- FIXME: use pipes / conduits for efficiency
     loop = evalToYield q >>= \case
       [] -> pure []
-      xs -> (xs ++) <$> loop
+      xs -> (xs ++) <$> loop -- FIXME: memory collects here
