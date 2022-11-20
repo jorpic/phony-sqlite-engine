@@ -4,7 +4,7 @@ import Test.Hspec
 
 import Data.Map qualified as Map
 import Data.Vector qualified as V
-import Engine (runQuery, Db(..), Val(..), Cmd(..))
+import Engine (runQuery, Db(..), Val(..), Cmd(..), CmpOp(..))
 
 
 testDb :: Db
@@ -41,4 +41,20 @@ spec = describe "engine" $ do
       `evalsTo` (map (map Just))
         [ [IntVal 1, StrVal "john doe"]
         , [IntVal 2, StrVal "jane doe"]
+        ]
+  it "can select from table with a filter"
+    $ [ Init {goto = 9}
+      , OpenRead {cursor = 0, table = "users"}
+      , Rewind {cursor = 0, goto = 8}
+      ,  Column {cursor = 0, column = 2, reg = 1, def = Nothing}
+      ,  Cmp {cmpOp = Lt, reg = 1, reg2 = 3, goto = 7,  cmpFlag = Nothing}
+      ,  Column {cursor = 0, column = 1, reg = 2, def = Nothing}
+      ,  ResultRow {reg = 2, len = 1}
+      , Next {cursor = 0, goto = 3}
+      , Halt
+      , Integer {reg = 3, iVal = 40}
+      , Goto {goto = 1}
+      ]
+      `evalsTo` (map (map Just))
+        [ [StrVal "john doe"]
         ]

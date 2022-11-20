@@ -8,6 +8,7 @@ module Engine
     , runQuery
     , Db(..)
     , Val(..)
+    , CmpOp(..)
     ) where
 
 import Control.Lens
@@ -15,9 +16,10 @@ import Control.Monad (when, void)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Ord (Ordering(..))
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Vector (Vector, (!?))
 import Data.Vector qualified as V
 
@@ -25,8 +27,8 @@ type CursorId = Int
 type TableId = String
 
 type Addr = Int
-data Val = StrVal String | IntVal Integer | RealVal Double
-  deriving (Eq, Show)
+data Val = IntVal Integer | RealVal Double | StrVal String
+  deriving (Eq, Ord, Show)
 type Row = Vector (Maybe Val)
 type Table = Vector Row
 
@@ -47,6 +49,7 @@ data EngineState = EngineState
   , _registers :: Map Int Val
   , _openCursors :: Map CursorId Cursor
   , _yield :: [Row]
+  , _cmpResult :: Maybe Ordering -- used by OP_Jump
   }
   deriving Show
 
@@ -61,7 +64,22 @@ defaultEngineState = EngineState
   , _registers = Map.empty
   , _openCursors = Map.empty
   , _yield = []
+  , _cmpResult = Nothing
   }
+
+data CmpOp = Eq | Ne | Lt | Gt | Le | Ge
+  deriving (Eq, Show)
+
+data CmpFlag
+  = NullEq
+  -- ^ This flag is used only for equality operators (Eq and Ne).
+  -- If both operands are NULL then the result of comparison is true.
+  -- If either operand is NULL then the result is false.
+  -- If neither operand is NULL the result is the same as if the flag were.
+  | JumpIfNull
+  -- If either operand is NULL then the take the jump.
+  -- If this flag is not set then fall through if either operand is NULL.
+  deriving (Eq, Show)
 
 data Cmd
   = Init { goto :: Addr }
@@ -71,6 +89,15 @@ data Cmd
   | Real  {reg :: Int, rVal :: Double}
   | Integer  {reg :: Int, iVal :: Integer}
   | String8 {reg :: Int, sVal :: String}
+  | Cmp
+    -- ^ Compare the values in register P1 and P3. Jump to P2 if true.
+    { cmpOp :: CmpOp
+    , reg :: Int
+    , goto :: Addr
+    , reg2 :: Int
+    , cmpFlag :: Maybe CmpFlag
+    }
+
   | ResultRow {reg :: Int, len :: Int}
     -- ^ The registers P1 through P1+P2-1 contain a single row of results.
   | OpenRead {cursor :: CursorId, table :: TableId}
@@ -94,6 +121,24 @@ evalCmd = \case
   Real{..}    -> registers %= (at reg ?~ RealVal rVal)
   Integer{..} -> registers %= (at reg ?~ IntVal iVal)
   String8{..} -> registers %= (at reg ?~ StrVal sVal)
+
+  Cmp{..} -> do
+    a <- use $ registers . at reg
+    b <- use $ registers . at reg2
+    let res = compare a b
+    let jump = case cmpOp of
+          Eq -> res == EQ
+          Ne -> res /= EQ
+          Lt -> res == LT
+          Gt -> res == GT
+          Le -> res == LT || res == EQ
+          Ge -> res == GT || res == EQ
+    case (cmpFlag, a, b) of
+      (          _,     Just  _, Just  _) -> when jump $ jumpTo ?= goto
+      (Just NullEq,     Nothing, Nothing) -> jumpTo ?= goto
+      (Just JumpIfNull,       _,       _) -> jumpTo ?= goto
+      _                                   -> pure ()
+    cmpResult ?= res
 
   ResultRow{..} -> do
     regs <- use registers
@@ -126,8 +171,6 @@ evalCmd = \case
     openCursors %= (at cursor ?~ Cursor table (offset+1))
     row <- rowAt cursor
     when (row /= Nothing) $ jumpTo ?= goto
-
-  _ -> lift $ throwE "Not implemented yet"
 
 
 throwIfJust :: Engine (Maybe a) -> EngineErr -> Engine ()
