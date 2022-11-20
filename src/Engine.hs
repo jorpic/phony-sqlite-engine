@@ -21,7 +21,6 @@ import Data.Maybe (fromMaybe)
 import Data.Vector (Vector, (!?))
 import Data.Vector qualified as V
 
--- FIXME: use phantom types instead? Id a = Id Int
 type CursorId = Int
 type TableId = String
 
@@ -67,20 +66,20 @@ defaultEngineState = EngineState
 data Cmd
   = Init { goto :: Addr }
     -- ^ If P2 is not zero, jump to instruction P2.
-  | Goto { goto :: Addr }
+  | Goto {goto :: Addr}
   | Halt
-  | Real  { reg :: Int, rVal :: Double }
-  | Integer  { reg :: Int, iVal :: Integer }
-  | String8 { reg :: Int, sVal :: String }
-  | ResultRow { reg :: Int, len :: Int }
+  | Real  {reg :: Int, rVal :: Double}
+  | Integer  {reg :: Int, iVal :: Integer}
+  | String8 {reg :: Int, sVal :: String}
+  | ResultRow {reg :: Int, len :: Int}
     -- ^ The registers P1 through P1+P2-1 contain a single row of results.
-  | OpenRead { cursor :: CursorId, table :: TableId }
-  | Rewind { cursor :: CursorId, goto :: Addr }
+  | OpenRead {cursor :: CursorId, table :: TableId}
+  | Rewind {cursor :: CursorId, goto :: Addr}
     -- ^ Rewind cursor P1. Jump to P2 if the table is empty.
-  | Column { cursor :: CursorId, column :: Int, reg :: Int, def :: Maybe Val }
+  | Column {cursor :: CursorId, column :: Int, reg :: Int, def :: Maybe Val}
     -- ^ Read P2-th column from cursor P1, store result in P3, use P4 as
     -- default.
-  | Next { cursor :: CursorId, goto :: Addr } -- _uniquenessHint :: Bool }
+  | Next {cursor :: CursorId, goto :: Addr} -- _uniquenessHint :: Bool }
     -- Advance P1, jump to P2 if not empty, P3 is a hint
 
   deriving (Eq, Show)
