@@ -26,17 +26,21 @@ source-repository head
 library
   exposed-modules:
       Engine
+      Engine.Cmd
+      Engine.State
+      Engine.Types
   other-modules:
       Paths_phony_sqlite_engine
   hs-source-dirs:
       src
   default-extensions:
+      Strict
       ImportQualifiedPost
       LambdaCase
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
     , containers
@@ -52,12 +56,13 @@ executable phony-sqlite-engine
   hs-source-dirs:
       app
   default-extensions:
+      Strict
       ImportQualifiedPost
       LambdaCase
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , phony-sqlite-engine
@@ -72,12 +77,13 @@ test-suite phony-sqlite-engine-test
   hs-source-dirs:
       test
   default-extensions:
+      Strict
       ImportQualifiedPost
       LambdaCase
       OverloadedStrings
       RecordWildCards
       NamedFieldPuns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
