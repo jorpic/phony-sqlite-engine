@@ -34,6 +34,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      GADTs
       Strict
       ImportQualifiedPost
       LambdaCase
@@ -56,6 +57,7 @@ executable phony-sqlite-engine
   hs-source-dirs:
       app
   default-extensions:
+      GADTs
       Strict
       ImportQualifiedPost
       LambdaCase
@@ -77,6 +79,7 @@ test-suite phony-sqlite-engine-test
   hs-source-dirs:
       test
   default-extensions:
+      GADTs
       Strict
       ImportQualifiedPost
       LambdaCase

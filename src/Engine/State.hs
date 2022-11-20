@@ -20,6 +20,7 @@ data EngineState = EngineState
   , _openCursors :: Map CursorId Cursor
   , _yield :: [Row]
   , _cmpResult :: Maybe Ordering -- used by OP_Jump
+  , _halted :: Bool
   }
   deriving Show
 
@@ -35,6 +36,7 @@ defaultEngineState = EngineState
   , _openCursors = Map.empty
   , _yield = []
   , _cmpResult = Nothing
+  , _halted = False
   }
 
 type Engine a = StateT EngineState (Except EngineErr) a
