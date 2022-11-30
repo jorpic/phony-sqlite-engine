@@ -1,14 +1,13 @@
 name:                phony-sqlite-engine
 version:             0.1.0.0
 github:              "jorpic/phony-sqlite-engine"
-license:             BSD3
+license:             MIT
 author:              "Max Taldykin"
 maintainer:          "jorpic@gmail.com"
 copyright:           "2022 Max Taldykin"
 
 extra-source-files:
 - README.md
-- CHANGELOG.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
